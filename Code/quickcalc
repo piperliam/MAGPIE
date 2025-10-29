@@ -1,0 +1,20 @@
+# Quick Calc Tool for Random Items for MAGPIE
+# gets changed a lot.... just so I have a quick playground 
+
+
+import math
+
+# Probe Panel Cylinder Side Area of Panels
+# A = 2piRH
+
+rad_clynder = 0.15 # m
+Height_clynder = 0.2 # m
+
+
+A = 2*math.pi*rad_clynder*Height_clynder
+
+print("Area of Cylinder",A)
+
+#side area of foldouts
+aa = 0.1 # m^2
+print("side area of foldouts:",math.sqrt(aa)*100)
