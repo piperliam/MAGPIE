@@ -1,5 +1,5 @@
 """
-MAGPIE Mars EDL / Landing Simulator (v2.0k + debug + chute corridor + staging snapshots)
+MAGPIE Mars EDL / Landing Simulator (v2.0k (this has had a few revisions + debug + chute corridor + staging snapshots)
 
 Author: Liam Piper
 2025
