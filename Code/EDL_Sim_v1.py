@@ -51,14 +51,14 @@ DUST_RHO_SCALE      = 1.5         # multiplier on density if storm is on
 
 # --- Entry targeting / orbit geometry ---
 START_ALT_CIRC_M       = 250_000.0    # [m] start circular orbit alt
-TARGET_PERIAPSIS_ALT_M = 35_000.0     # [m] periapsis alt after deorbit
+TARGET_PERIAPSIS_ALT_M = 35_000.0     # [m] periapsis alt after deorbit - Atmospheric drag will get us the rest of the way there 
 ENTRY_INTERFACE_ALT_M  = 125_000.0    # [m] EI def
 
 # --- Mass / stage bookkeeping ---
 BUS_DRY_KG              = 22.9    # kg bus dry (lands)
-BUS_TERMINAL_PROP_KG    = 0.0     # kg prop available for terminal retro
-MAIN_CHUTE_MASS_KG      = 4.2     # kg chute mass carried to ground
-HONEYCOMB_PAD_MASS_KG   = 6.0       # kg crush pad mass carried to ground
+BUS_TERMINAL_PROP_KG    = 0.0     # kg prop available for terminal retro (I have disabled, used to cause some issues before so tbd on if you should use this)
+MAIN_CHUTE_MASS_KG      = 4.2     # kg chute mass carried to ground (Mass of main parachute)
+HONEYCOMB_PAD_MASS_KG   = 6.0     # kg crush pad mass carried to ground (overestimate from calc)
 
 ABLATOR_MASS_KG         = 0.5     # kg ablator in aeroshell
 AEROSHELL_MASS_KG       = 12.2    # kg backshell + structure etc
@@ -68,7 +68,7 @@ DEORBIT_PROP_MASS_KG    = 5.0     # kg prop (consumed pre-EI)
 # --- Terminal retro pack / terminal DV ---
 TERMINAL_RETRO_ENABLE       = True
 
-G12_COUNT                   = 0
+G12_COUNT                   = 0            # Currently set, as I like the flag saying they were activated even if there are non)
 G12_TOTAL_IMPULSE_NS        = 144.0      # per motor
 G12_PROPELLANT_KG           = 0.082
 G12_SCALE_TO_IMPULSE        = True
@@ -119,7 +119,7 @@ TAU_FULL_S          = 3.5
 Q_REEF1_TO_2_MAX     = 900.0
 Q_REEF2_TO_FULL_MAX  = 700.0
 
-MAX_RISER_FORCE_N   = 25500.0
+MAX_RISER_FORCE_N   = 25500.0 # This is wicked high but comparable to Oppy
 SNATCH_OVERSHOOT    = 1.25
 ALLOW_CUTAWAY       = False
 
@@ -129,13 +129,13 @@ FORCE_MAIN_DEPLOY_BELOW_ALT_M = 9000.0  # [m]
 
 # survivability checks
 SURVIVABLE_PEAK_G_LIMIT         = 300.0   # payload limit in g at impact
-SURVIVABLE_RISER_FACTOR         = 1.0     # scaling chute limit
+SURVIVABLE_RISER_FACTOR         = 1.0     # scaling chute limit (could increase but don't want to as this time)
 SURVIVABLE_ENTRY_PEAK_G_LIMIT   = 50.0    # [g] allowable peak aero/chute g during EDL (tunable)
 
 # touchdown vertical velocity requirement
-MAX_SAFE_TOUCHDOWN_VVERT_MPS = 15.0  # [m/s]
+MAX_SAFE_TOUCHDOWN_VVERT_MPS = 15.0  # [m/s] 
 
-# --- Thermal / ablation ---
+# --- Thermal / ablation --- Based on PICA, but could move to ceramics 
 NOSE_RADIUS_M              = 0.40
 EMISSIVITY                 = 0.8
 SIGMA                      = 5.670374419e-8
@@ -149,7 +149,7 @@ Q_JETTISON_MAX_PA          = 3000.0
 QDOT_JETTISON_MAX_Wcm2     = 5.0
 JETTISON_MIN_ALT_M         = 25_000.0
 
-# --- Honeycomb crush core model (INPUT FROM HONEYCOMB SCRIPT)
+# --- Honeycomb crush core model (INPUT FROM HONEYCOMB SCRIPT - OR NOT)
 #
 # Paste here from hex_v1.2a.py console block:
 #   [SIM CONSTANTS -> paste into EDL sim]
