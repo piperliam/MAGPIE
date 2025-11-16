@@ -1,0 +1,204 @@
+"""
+MAGPIE Orbiter EPS Simulator (NiMH + 700 W Array)
+
+- Simple 0D energy-balance model (sunlit + eclipse) - its good enough as our orbit is e=1 
+- Computes panel area from nameplate power and assumed efficiency (assumes worst case)
+- Prints orbit-by-orbit energy balance and battery SOC evolution (normal outputs)
+
+Liam Piper
+
+2025-04-14
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# -------------------------
+# User-adjustable parameters
+# -------------------------
+
+# --- Solar array & environment ---
+P_array_rated = 900.0        # W, nameplate at Mars (clean, normal incidence)
+dust_factor   = 0.85         # fractional loss due to dust / degradation
+angle_factor  = 0.85         # average cos(theta) for pointing (0..1)
+eta_array     = dust_factor * angle_factor
+
+# Panel efficiency at Mars (electrical / incident solar)
+eta_panel     = 0.29         # tweak this if you want different technology
+
+# Solar constant and Mars distance (for irradiance)
+solar_const_1AU = 1361.0     # W/m^2
+mars_AU         = 1.52       # mean Mars distance in AU
+G_mars          = solar_const_1AU / (mars_AU ** 2)  # W/m^2 at Mars
+
+# Effective average generation in sunlit arc
+P_array_eff   = P_array_rated * eta_array  # W
+
+# --- Battery & bus ---
+V_bus         = 28.0         # V regulated bus
+E_batt_nom    = 950.0      # Wh, NiMH pack nominal capacity
+eta_rt        = 0.77         # round-trip efficiency (charge+discharge+conversion)
+
+SOC_init      = 0.80         # initial SOC (fraction 0.1)
+SOC_min       = 0.20         # lower limit before loads must shed
+SOC_max       = 1.00         # upper clamp
+
+# --- Orbit geometry ---
+T_orbit       = 2.1 * 3600.0     # s, science orbit period
+eclipse_frac  = 0.33             # fraction of orbit in eclipse (~0.7 hr)
+t_eclipse     = T_orbit * eclipse_frac
+t_sunlit      = T_orbit - t_eclipse
+
+# --- Loads (adjust to match your spreadsheet) ---
+P_load_sun    = 355.0        # W, "Alt Power" sunlit load
+P_load_ecl    = 275.0        # W, eclipse load (heaters + wheels + essentials)
+
+# --- Simulation horizon ---
+n_orbits      = 40           # number of orbits to simulate
+dt            = 10.0         # s, integration timestep
+
+# -------------------------
+# Derived quantities
+# -------------------------
+
+# Panel area at Mars (from nameplate power and panel efficiency)
+# P_rated = eta_panel * G_mars * A  =>  A = P_rated / (eta_panel * G_mars)
+panel_area = P_array_rated / (eta_panel * G_mars)  # m^2
+
+C_batt_Wh = E_batt_nom
+SOC_0     = SOC_init
+E_batt_0  = SOC_0 * C_batt_Wh  # initial energy in Wh
+
+t_total   = n_orbits * T_orbit
+N_steps   = int(np.ceil(t_total / dt))
+
+time      = np.zeros(N_steps)
+soc       = np.zeros(N_steps)
+P_gen_log = np.zeros(N_steps)
+P_ld_log  = np.zeros(N_steps)
+
+# per-orbit energy tracking
+E_gen_orbit  = np.zeros(n_orbits)  # Wh
+E_load_orbit = np.zeros(n_orbits)  # Wh
+
+# -------------------------
+# Simulation loop
+# -------------------------
+
+E_batt = E_batt_0
+hit_min_soc = False
+orbit_hit_min = None
+
+for k in range(N_steps):
+    t = k * dt
+    time[k] = t / 3600.0  # hours
+
+    orbit_idx = int(t // T_orbit)
+    if orbit_idx >= n_orbits:
+        orbit_idx = n_orbits - 1  # safety clamp
+
+    # Where are we in the orbit?
+    t_in_orbit = t % T_orbit
+    sunlit = t_in_orbit < t_sunlit
+
+    if sunlit:
+        P_gen = P_array_eff
+        P_ld  = P_load_sun
+    else:
+        P_gen = 0.0
+        P_ld  = P_load_ecl
+
+    # Net power and energy change this step
+    P_net = P_gen - P_ld
+    dE = P_net * dt / 3600.0  # Wh
+
+    # Round-trip efficiency
+    if dE > 0:
+        dE *= eta_rt
+    elif dE < 0:
+        dE /= eta_rt
+
+    # Update battery energy with limits
+    E_batt = np.clip(E_batt + dE, SOC_min * C_batt_Wh, SOC_max * C_batt_Wh)
+
+    # Record SOC and powers
+    soc[k]       = E_batt / C_batt_Wh
+    P_gen_log[k] = P_gen
+    P_ld_log[k]  = P_ld
+
+    # Accumulate orbit energy terms
+    E_gen_orbit[orbit_idx]  += max(P_gen, 0.0) * dt / 3600.0
+    E_load_orbit[orbit_idx] += P_ld * dt / 3600.0
+
+    # Note if we ever hit the minimum SOC bound
+    if (not hit_min_soc) and (E_batt <= SOC_min * C_batt_Wh + 1e-6):
+        hit_min_soc = True
+        orbit_hit_min = orbit_idx
+
+# -------------------------
+# Text summary outputs
+# -------------------------
+
+print("=== MAGPIE Orbiter EPS Summary ===")
+print(f"Panel nameplate power (Mars)     : {P_array_rated:.1f} W")
+print(f"Mars solar irradiance            : {G_mars:.1f} W/m^2")
+print(f"Assumed panel efficiency         : {eta_panel*100:.1f} %")
+print(f"Required panel area              : {panel_area:.2f} m^2")
+
+print("\nEffective array derating:")
+print(f"  Dust factor                    : {dust_factor:.2f}")
+print(f"  Angle factor                   : {angle_factor:.2f}")
+print(f"  Effective sunlit power         : {P_array_eff:.1f} W")
+
+print("\nBattery & orbit parameters:")
+print(f"  Battery nominal capacity       : {E_batt_nom:.0f} Wh")
+print(f"  Initial SOC                    : {SOC_init*100:.1f} %")
+print(f"  Orbit period                   : {T_orbit/3600.0:.2f} hr")
+print(f"  Eclipse fraction               : {eclipse_frac*100:.1f} %")
+print(f"  Sunlit duration per orbit      : {t_sunlit/3600.0:.2f} hr")
+print(f"  Eclipse duration per orbit     : {t_eclipse/3600.0:.2f} hr")
+
+print("\nSimulation results:")
+print(f"  Final SOC after {n_orbits} orbits : {soc[-1]*100:.1f} %")
+print(f"  Minimum SOC over run              : {soc.min()*100:.1f} %")
+if hit_min_soc:
+    print(f"  SOC floor first reached in orbit : {orbit_hit_min+1}")
+else:
+    print("  SOC floor was never reached.")
+
+# per-orbit energy table (first few orbits)
+print("\nPer-orbit energy balance (Wh):")
+print("Orbit |  E_gen   E_load   Net")
+for i in range(n_orbits):
+    net = E_gen_orbit[i] - E_load_orbit[i]
+    print(f"{i+1:5d} | {E_gen_orbit[i]:6.1f}  {E_load_orbit[i]:6.1f}  {net:6.1f}")
+
+# -------------------------
+# Plots
+# -------------------------
+
+# SOC plot
+plt.figure(figsize=(8, 4))
+plt.plot(time, soc * 100.0, linewidth=1.8)
+plt.xlabel("Time [hours]")
+plt.ylabel("Battery SOC [%]")
+plt.title("MAGPIE Orbiter NiMH Battery SOC vs Time")
+plt.grid(True, which="both", linestyle="--", linewidth=0.5)
+plt.ylim(0, 105)
+plt.tight_layout()
+
+# Optional: quick look at power levels over one orbit
+t_one_orbit = time[time <= T_orbit/3600.0]
+idx_one = len(t_one_orbit)
+
+plt.figure(figsize=(8, 4))
+plt.plot(t_one_orbit, P_gen_log[:idx_one], label="Generation")
+plt.plot(t_one_orbit, P_ld_log[:idx_one], label="Load")
+plt.xlabel("Time [hours] (first orbit)")
+plt.ylabel("Power [W]")
+plt.title("Sunlit / Eclipse Power Profile (First Orbit)")
+plt.grid(True, linestyle="--", linewidth=0.5)
+plt.legend()
+plt.tight_layout()
+
+plt.show()
