@@ -1,5 +1,5 @@
 """
-MAGPIE Orbiter EPS Simulator (NiMH + 700 W Array)
+MAGPIE Orbiter EPS Simulator (950 Wh NiMH + 900 W Array)
 
 - Simple 0D energy-balance model (sunlit + eclipse) - its good enough as our orbit is e=1 
 - Computes panel area from nameplate power and assumed efficiency (assumes worst case)
