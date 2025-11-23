@@ -3,6 +3,7 @@
 
 
 import math
+import numpy
 
 # Probe Panel Cylinder Side Area of Panels
 # A = 2piRH
